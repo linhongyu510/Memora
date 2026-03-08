@@ -8,7 +8,7 @@
 - **后端**: Python FastAPI, SQLAlchemy
 - **数据库**: PostgreSQL, ChromaDB（向量检索预留）
 
-## 项目结构（Phase 1）
+## 项目结构（Phase 3）
 
 ```
 OmniNote/
@@ -18,11 +18,19 @@ OmniNote/
 │   ├── app/
 │   │   ├── api/
 │   │   │   └── routes/
-│   │   │       └── system.py    # 健康检查等系统路由
+│   │   │       ├── system.py    # 健康检查等系统路由
+│   │   │       └── upload.py    # 上传与处理流水线入口
 │   │   ├── config.py            # 应用配置
 │   │   ├── database.py          # SQLAlchemy 连接/会话
 │   │   ├── models.py            # 数据模型 (Category, Tag, Note)
 │   │   ├── schemas.py           # Pydantic 序列化模型
+│   │   ├── services/
+│   │   │   ├── ingestion.py     # MIME 分发与摄取入口
+│   │   │   ├── ai_summarizer.py # Mock LLM 总结与打标
+│   │   │   └── extractors/
+│   │   │       ├── audio_video.py
+│   │   │       ├── image_ocr.py
+│   │   │       └── document.py
 │   │   └── main.py              # FastAPI 应用入口
 │   └── requirements.txt
 └── package.json         # 前端依赖
@@ -35,7 +43,7 @@ OmniNote/
 创建 PostgreSQL 数据库：
 
 ```bash
-createdb memora
+createdb omninote
 ```
 
 ### 2. 后端
@@ -64,5 +72,5 @@ npm run dev
 
 - [x] **Phase 1**: 基础骨架与数据库定义
 - [x] Phase 2: 核心 UI 与前端逻辑
-- [ ] Phase 3: 后端上传与处理流
+- [x] Phase 3: 后端上传与处理流
 - [ ] Phase 4: 联调与展示

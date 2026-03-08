@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes.system import router as system_router
+from .api.routes.upload import router as upload_router
 from .config import get_settings
 from .database import init_db
 
@@ -40,3 +41,4 @@ def root():
 
 # 统一注册 API 路由入口
 app.include_router(system_router)
+app.include_router(upload_router)

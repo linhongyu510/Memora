@@ -1,7 +1,7 @@
 """
 Pydantic 序列化模型 - 用于 API 请求/响应
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from .models import MediaType
@@ -66,7 +66,24 @@ class NoteResponse(NoteBase):
     error_message: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    tags: List[TagResponse] = []
+    tags: List[TagResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
+
+
+# ============ 上传处理结果 ============
+class UploadItemResponse(BaseModel):
+    note_id: int
+    filename: str
+    status: str
+    message: str
+    media_type: Optional[MediaType] = None
+    suggested_tags: List[str] = Field(default_factory=list)
+
+
+class UploadBatchResponse(BaseModel):
+    total: int
+    completed: int
+    failed: int
+    results: List[UploadItemResponse]
