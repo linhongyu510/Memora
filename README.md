@@ -63,6 +63,6 @@ npm run dev
 ## Phase 进度
 
 - [x] **Phase 1**: 基础骨架与数据库定义
-- [ ] Phase 2: 核心 UI 与前端逻辑
+- [x] Phase 2: 核心 UI 与前端逻辑
 - [ ] Phase 3: 后端上传与处理流
 - [ ] Phase 4: 联调与展示
