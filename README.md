@@ -1,4 +1,4 @@
-# Memora
+# OmniNote
 
 个人智能知识库系统 - 支持多模态输入（截图、文字、文档、视频、音频），通过 AI 自动提取内容、生成总结，归档到类 Notability 的文件夹和标签体系。
 
@@ -8,17 +8,22 @@
 - **后端**: Python FastAPI, SQLAlchemy
 - **数据库**: PostgreSQL, ChromaDB（向量检索预留）
 
-## 项目结构
+## 项目结构（Phase 1）
 
 ```
-Memora/
+OmniNote/
 ├── app/                 # Next.js App Router
 ├── components/          # 前端组件
 ├── backend/             # FastAPI 后端
 │   ├── app/
-│   │   ├── models.py    # 数据库模型 (Category, Tag, Note)
-│   │   ├── database.py  # SQLAlchemy 配置
-│   │   └── main.py     # API 入口
+│   │   ├── api/
+│   │   │   └── routes/
+│   │   │       └── system.py    # 健康检查等系统路由
+│   │   ├── config.py            # 应用配置
+│   │   ├── database.py          # SQLAlchemy 连接/会话
+│   │   ├── models.py            # 数据模型 (Category, Tag, Note)
+│   │   ├── schemas.py           # Pydantic 序列化模型
+│   │   └── main.py              # FastAPI 应用入口
 │   └── requirements.txt
 └── package.json         # 前端依赖
 ```

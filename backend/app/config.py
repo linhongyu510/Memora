@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./memora.db"
     
     # 应用
-    APP_NAME: str = "Memora API"
+    APP_NAME: str = "OmniNote API"
     DEBUG: bool = False
     
     class Config:

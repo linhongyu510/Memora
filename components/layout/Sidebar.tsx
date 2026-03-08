@@ -9,7 +9,7 @@ export function Sidebar() {
     <aside className="flex h-full w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white">
       {/* 标题区 */}
       <div className="border-b border-slate-200 px-4 py-3">
-        <h1 className="text-lg font-semibold text-slate-800">Memora</h1>
+        <h1 className="text-lg font-semibold text-slate-800">OmniNote</h1>
         <p className="text-xs text-slate-500">智能知识库</p>
       </div>
 
