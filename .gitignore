@@ -36,3 +36,6 @@ build/
 
 # SQLite dev database
 *.db
+
+# Runtime uploaded files
+backend/storage/

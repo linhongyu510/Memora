@@ -20,6 +20,7 @@ OmniNote/
 │   │   │   └── routes/
 │   │   │       ├── system.py    # 健康检查等系统路由
 │   │   │       ├── notes.py     # 笔记列表/详情/轮询/媒体访问
+│   │   │       ├── taxonomy.py  # 分类与标签接口
 │   │   │       └── upload.py    # 上传与处理流水线入口
 │   │   ├── config.py            # 应用配置
 │   │   ├── database.py          # SQLAlchemy 连接/会话
@@ -60,6 +61,13 @@ python run.py
 
 API 运行在 http://localhost:8001
 
+### 后端测试
+
+```bash
+cd backend
+python -m unittest discover -s tests -p "test_*.py"
+```
+
 ### 3. 前端
 
 ```bash
@@ -68,6 +76,18 @@ npm run dev
 ```
 
 访问 http://localhost:3000
+
+## 关键接口
+
+- `GET /api/categories`：获取分类
+- `POST /api/categories`：创建分类
+- `GET /api/tags`：获取标签
+- `POST /api/tags`：创建标签
+- `POST /api/upload`：多文件上传（异步处理）
+- `GET /api/notes`：获取笔记列表
+- `GET /api/notes/status?ids=1,2`：轮询处理状态
+- `GET /api/notes/{id}`：笔记详情
+- `GET /api/notes/{id}/media`：原始媒体预览
 
 ## Phase 进度
 

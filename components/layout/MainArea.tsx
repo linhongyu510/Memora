@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, List } from "lucide-react";
+import { LayoutGrid, List, RefreshCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
 import { NoteDetailPanel } from "@/components/detail/NoteDetailPanel";
@@ -27,16 +27,21 @@ export function MainArea() {
   const selectedNoteId = useOmniNoteStore((state) => state.selectedNoteId);
   const markdownDrafts = useOmniNoteStore((state) => state.markdownDrafts);
   const viewMode = useOmniNoteStore((state) => state.viewMode);
+  const uploadState = useOmniNoteStore((state) => state.upload);
+  const loadTaxonomy = useOmniNoteStore((state) => state.loadTaxonomy);
   const loadNotes = useOmniNoteStore((state) => state.loadNotes);
   const selectNote = useOmniNoteStore((state) => state.selectNote);
   const setMarkdownDraft = useOmniNoteStore((state) => state.setMarkdownDraft);
   const setViewMode = useOmniNoteStore((state) => state.setViewMode);
 
   useEffect(() => {
+    loadTaxonomy().catch(() => {
+      // 忽略启动加载错误，sidebar 会展示提示。
+    });
     loadNotes().catch(() => {
       // 关键业务逻辑：后端离线时仍允许查看本地示例数据，避免主界面空白。
     });
-  }, [loadNotes]);
+  }, [loadNotes, loadTaxonomy]);
 
   const categoryChildrenMap = useMemo(() => {
     const map = new Map<number, CategoryItem[]>();
@@ -117,10 +122,22 @@ export function MainArea() {
       <header className="flex-shrink-0 border-b border-slate-200 bg-white px-6 py-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-medium text-slate-700">笔记</h2>
-            <p className="text-sm text-slate-500">上传后将进入 AI 后台处理流程（上传 + 轮询）</p>
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
+              <Sparkles className="h-4 w-4 text-indigo-500" />
+              智能笔记中心
+            </h2>
+            <p className="text-sm text-slate-500">上传后自动进入 AI 处理流水线并实时展示结果</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => loadNotes().catch(() => undefined)}
+              disabled={uploadState.isUploading}
+            >
+              <RefreshCcw className="mr-1 h-3.5 w-3.5" />
+              刷新
+            </Button>
             <Button
               size="icon"
               variant={viewMode === "card" ? "default" : "outline"}
@@ -141,7 +158,7 @@ export function MainArea() {
       </header>
 
       <div className="grid flex-1 grid-cols-1 xl:grid-cols-[360px_1fr]">
-        <section className="overflow-auto border-r border-slate-200 bg-slate-50 p-4">
+        <section className="overflow-auto border-r border-slate-200 bg-slate-50/70 p-4">
           {!filteredNotes.length ? (
             <div className="flex h-full min-h-[220px] items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50">
               <div className="text-center text-slate-500">
@@ -178,7 +195,7 @@ export function MainArea() {
           )}
         </section>
 
-        <section className="overflow-auto bg-slate-50 p-4">
+        <section className="overflow-auto bg-slate-50/60 p-4">
           <NoteDetailPanel
             note={selectedNote}
             markdown={selectedNote ? markdownDrafts[selectedNote.id] || "" : ""}

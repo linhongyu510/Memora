@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, FolderPlus, Tag as TagIcon } from "lucide-react";
+import { AlertTriangle, ChevronRight, FolderPlus, Tag as TagIcon } from "lucide-react";
 import { Fragment, useMemo } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ export function Sidebar() {
   const tags = useOmniNoteStore((state) => state.tags);
   const selectedCategoryId = useOmniNoteStore((state) => state.selectedCategoryId);
   const selectedTagIds = useOmniNoteStore((state) => state.selectedTagIds);
+  const bootstrapError = useOmniNoteStore((state) => state.bootstrapError);
   const selectCategory = useOmniNoteStore((state) => state.selectCategory);
   const toggleTag = useOmniNoteStore((state) => state.toggleTag);
   const clearTagFilter = useOmniNoteStore((state) => state.clearTagFilter);
@@ -39,16 +40,24 @@ export function Sidebar() {
     return map;
   }, [categories]);
 
-  const handleAddCategory = (parentId: number | null = null) => {
+  const handleAddCategory = async (parentId: number | null = null) => {
     const name = window.prompt("请输入分类名称");
     if (!name?.trim()) return;
-    addCategory(name.trim(), parentId);
+    try {
+      await addCategory(name.trim(), parentId);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "新建分类失败");
+    }
   };
 
-  const handleAddTag = () => {
+  const handleAddTag = async () => {
     const name = window.prompt("请输入标签名称");
     if (!name?.trim()) return;
-    addTag(name.trim());
+    try {
+      await addTag(name.trim());
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "新建标签失败");
+    }
   };
 
   const renderCategoryTree = (categoryId: number, depth = 0): JSX.Element => {
@@ -78,15 +87,31 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-full w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white">
+    <aside className="flex h-full w-72 flex-shrink-0 flex-col border-r border-slate-200 bg-white">
       {/* 标题区 */}
-      <div className="border-b border-slate-200 px-4 py-3">
-        <h1 className="text-lg font-semibold text-slate-800">OmniNote</h1>
-        <p className="text-xs text-slate-500">智能知识库</p>
+      <div className="border-b border-slate-200 bg-gradient-to-br from-slate-900 to-slate-700 px-4 py-4 text-white">
+        <h1 className="text-lg font-semibold">OmniNote</h1>
+        <p className="mt-1 text-xs text-slate-200">个人智能知识库</p>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-md bg-white/10 px-2 py-1">
+            <p className="text-slate-200">分类</p>
+            <p className="text-sm font-semibold">{categories.length}</p>
+          </div>
+          <div className="rounded-md bg-white/10 px-2 py-1">
+            <p className="text-slate-200">标签</p>
+            <p className="text-sm font-semibold">{tags.length}</p>
+          </div>
+        </div>
       </div>
 
       {/* 分类树 */}
       <div className="flex-1 overflow-auto p-3">
+        {bootstrapError && (
+          <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-700">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+            <span>{bootstrapError}</span>
+          </div>
+        )}
         <div className="mb-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-xs font-medium uppercase tracking-wider text-slate-500">分类</h2>

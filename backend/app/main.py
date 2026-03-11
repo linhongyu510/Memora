@@ -6,9 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes.notes import router as notes_router
 from .api.routes.system import router as system_router
+from .api.routes.taxonomy import router as taxonomy_router
 from .api.routes.upload import router as upload_router
 from .config import get_settings
-from .database import init_db
+from .database import SessionLocal, init_db
+from .services.bootstrap import seed_initial_taxonomy
 
 settings = get_settings()
 
@@ -33,6 +35,11 @@ def startup_event():
     """启动时初始化数据库表（需导入 models 以注册表结构）"""
     from . import models  # noqa: F401
     init_db()
+    db = SessionLocal()
+    try:
+        seed_initial_taxonomy(db)
+    finally:
+        db.close()
 
 
 @app.get("/")
@@ -44,3 +51,4 @@ def root():
 app.include_router(system_router)
 app.include_router(upload_router)
 app.include_router(notes_router)
+app.include_router(taxonomy_router)

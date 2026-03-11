@@ -22,8 +22,8 @@ export function UploadDropzone() {
     <div className="space-y-2">
       <div
         className={cn(
-          "relative rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 transition-colors",
-          upload.isDragging && "border-slate-500 bg-slate-100"
+          "relative rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 transition-colors",
+          upload.isDragging && "border-indigo-400 bg-indigo-50"
         )}
         onDragOver={(event) => {
           event.preventDefault();
@@ -43,7 +43,7 @@ export function UploadDropzone() {
           className="hidden"
           onChange={(event) => handleFiles(event.target.files)}
         />
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm text-slate-700">
             <UploadCloud className="h-4 w-4" />
             <span>拖拽文件到这里，或点击右侧按钮上传（支持多文件）</span>
@@ -62,7 +62,7 @@ export function UploadDropzone() {
       <div className="space-y-1">
         <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
           <div
-            className="h-full rounded-full bg-slate-700 transition-all"
+            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-slate-700 transition-all"
             style={{ width: `${upload.progress}%` }}
           />
         </div>

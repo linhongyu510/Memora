@@ -51,6 +51,8 @@ interface OmniNoteState {
   markdownDrafts: Record<number, string>;
   viewMode: ViewMode;
   upload: UploadState;
+  bootstrapError: string | null;
+  loadTaxonomy: () => Promise<void>;
   loadNotes: () => Promise<void>;
   selectCategory: (categoryId: number | null) => void;
   toggleTag: (tagId: number) => void;
@@ -59,8 +61,8 @@ interface OmniNoteState {
   setMarkdownDraft: (noteId: number, markdown: string) => void;
   setViewMode: (mode: ViewMode) => void;
   setDragActive: (active: boolean) => void;
-  addCategory: (name: string, parentId?: number | null) => void;
-  addTag: (name: string) => void;
+  addCategory: (name: string, parentId?: number | null) => Promise<void>;
+  addTag: (name: string) => Promise<void>;
   uploadFiles: (files: File[]) => Promise<void>;
 }
 
@@ -110,6 +112,14 @@ interface BackendTag {
   id: number;
   name: string;
   color?: string | null;
+  sort_order?: number | null;
+}
+
+interface BackendCategory {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  sort_order: number;
 }
 
 interface BackendNote {
@@ -234,6 +244,35 @@ export const useOmniNoteStore = create<OmniNoteState>((set) => ({
     progress: 0,
     message: "等待上传",
   },
+  bootstrapError: null,
+  loadTaxonomy: async () => {
+    try {
+      const [categoriesRes, tagsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/categories`),
+        fetch(`${API_BASE_URL}/api/tags`),
+      ]);
+
+      if (!categoriesRes.ok || !tagsRes.ok) {
+        throw new Error("分类/标签加载失败");
+      }
+
+      const categoriesPayload: BackendCategory[] = await categoriesRes.json();
+      const tagsPayload: BackendTag[] = await tagsRes.json();
+
+      set({
+        categories: categoriesPayload.map((item) => ({
+          id: item.id,
+          name: item.name,
+          parentId: item.parent_id,
+          sortOrder: item.sort_order ?? 0,
+        })),
+        tags: tagsPayload.map(toTagItem),
+        bootstrapError: null,
+      });
+    } catch {
+      set({ bootstrapError: "后端分类与标签加载失败，当前使用本地示例数据。" });
+    }
+  },
   loadNotes: async () => {
     const response = await fetch(`${API_BASE_URL}/api/notes`);
     if (!response.ok) {
@@ -287,29 +326,55 @@ export const useOmniNoteStore = create<OmniNoteState>((set) => ({
     set((state) => ({
       upload: { ...state.upload, isDragging: active },
     })),
-  addCategory: (name, parentId = null) =>
-    set((state) => {
-      const maxId = state.categories.reduce((max, item) => Math.max(max, item.id), 0);
-      const siblings = state.categories.filter((item) => item.parentId === parentId);
-      return {
-        categories: [
-          ...state.categories,
-          {
-            id: maxId + 1,
-            name,
-            parentId,
-            sortOrder: siblings.length,
-          },
-        ],
-      };
-    }),
-  addTag: (name) =>
-    set((state) => {
-      const maxId = state.tags.reduce((max, item) => Math.max(max, item.id), 0);
-      return {
-        tags: [...state.tags, { id: maxId + 1, name, color: "#6366F1" }],
-      };
-    }),
+  addCategory: async (name, parentId = null) => {
+    const state = useOmniNoteStore.getState();
+    const sortOrder = state.categories.filter((item) => item.parentId === parentId).length;
+
+    const response = await fetch(`${API_BASE_URL}/api/categories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        parent_id: parentId,
+        sort_order: sortOrder,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error("新建分类失败");
+    }
+
+    const payload: BackendCategory = await response.json();
+    set((prev) => ({
+      categories: [
+        ...prev.categories,
+        {
+          id: payload.id,
+          name: payload.name,
+          parentId: payload.parent_id,
+          sortOrder: payload.sort_order ?? 0,
+        },
+      ],
+    }));
+  },
+  addTag: async (name) => {
+    const state = useOmniNoteStore.getState();
+    const response = await fetch(`${API_BASE_URL}/api/tags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        sort_order: state.tags.length,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error("新建标签失败");
+    }
+
+    const payload: BackendTag = await response.json();
+    set((prev) => ({
+      tags: mergeTags(prev.tags, [toTagItem(payload)]),
+    }));
+  },
   uploadFiles: async (files) => {
     if (!files.length) return;
 
