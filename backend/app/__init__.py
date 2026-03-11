@@ -1,1 +1,1 @@
-# OmniNote / Memora 后端应用包
+# OmniNote 后端应用包

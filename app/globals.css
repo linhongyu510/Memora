@@ -17,3 +17,8 @@
 body {
   @apply bg-background text-foreground antialiased;
 }
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Memora - 个人智能知识库",
+  title: "OmniNote - 个人智能知识库",
   description: "多模态输入、AI 提取与总结",
 };
 
