@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 
+import { API_BASE_URL } from "@/lib/api";
+
 export type MediaType = "text" | "image" | "document" | "audio" | "video";
 export type NoteStatus = "pending" | "processing" | "completed" | "failed";
 export type ViewMode = "card" | "list";
@@ -23,9 +25,11 @@ export interface NoteItem {
   id: number;
   title: string;
   summary: string;
+  content: string;
   mediaType: MediaType;
   categoryId: number | null;
   tagIds: number[];
+  originalPath: string | null;
   status: NoteStatus;
   createdAt: string;
 }
@@ -43,16 +47,21 @@ interface OmniNoteState {
   notes: NoteItem[];
   selectedCategoryId: number | null;
   selectedTagIds: number[];
+  selectedNoteId: number | null;
+  markdownDrafts: Record<number, string>;
   viewMode: ViewMode;
   upload: UploadState;
+  loadNotes: () => Promise<void>;
   selectCategory: (categoryId: number | null) => void;
   toggleTag: (tagId: number) => void;
   clearTagFilter: () => void;
+  selectNote: (noteId: number | null) => void;
+  setMarkdownDraft: (noteId: number, markdown: string) => void;
   setViewMode: (mode: ViewMode) => void;
   setDragActive: (active: boolean) => void;
   addCategory: (name: string, parentId?: number | null) => void;
   addTag: (name: string) => void;
-  ingestFiles: (files: File[]) => void;
+  uploadFiles: (files: File[]) => Promise<void>;
 }
 
 const initialCategories: CategoryItem[] = [
@@ -75,9 +84,11 @@ const initialNotes: NoteItem[] = [
     id: 1001,
     title: "RAG 架构设计草稿",
     summary: "梳理检索增强生成在个人知识库中的分层架构与索引策略。",
+    content: "这是示例文本。后续将由后端真实解析内容替换。",
     mediaType: "document",
     categoryId: 3,
     tagIds: [1, 3],
+    originalPath: null,
     status: "completed",
     createdAt: new Date().toISOString(),
   },
@@ -85,52 +96,124 @@ const initialNotes: NoteItem[] = [
     id: 1002,
     title: "OmniNote 需求评审录音",
     summary: "会议讨论了上传中心、处理流水线和标签系统的优先级。",
+    content: "这是示例转写。后续将由后端真实解析内容替换。",
     mediaType: "audio",
     categoryId: 5,
     tagIds: [4],
+    originalPath: null,
     status: "completed",
     createdAt: new Date().toISOString(),
   },
 ];
 
-function inferMediaType(file: File): MediaType {
-  const mime = file.type.toLowerCase();
-  const lowerName = file.name.toLowerCase();
-
-  if (mime.startsWith("image/")) return "image";
-  if (mime.startsWith("audio/")) return "audio";
-  if (mime.startsWith("video/")) return "video";
-  if (
-    mime.includes("pdf") ||
-    mime.includes("word") ||
-    lowerName.endsWith(".pdf") ||
-    lowerName.endsWith(".doc") ||
-    lowerName.endsWith(".docx")
-  ) {
-    return "document";
-  }
-  return "text";
+interface BackendTag {
+  id: number;
+  name: string;
+  color?: string | null;
 }
 
-function buildSummaryByMediaType(mediaType: MediaType) {
-  if (mediaType === "image") return "图片 OCR 处理中，正在提取文字并生成结构化摘要。";
-  if (mediaType === "audio") return "音频转写处理中，正在生成会议要点与行动项。";
-  if (mediaType === "video") return "视频解析处理中，正在抽取关键片段与主题内容。";
-  if (mediaType === "document") return "文档解析处理中，正在提取章节结构与核心结论。";
-  return "文本清洗处理中，正在生成摘要与推荐标签。";
+interface BackendNote {
+  id: number;
+  title: string;
+  summary: string | null;
+  content: string | null;
+  media_type: MediaType;
+  category_id: number | null;
+  original_path?: string | null;
+  status: NoteStatus;
+  created_at?: string | null;
+  tags?: BackendTag[];
 }
 
-function suggestTagIds(mediaType: MediaType, allTags: TagItem[]) {
-  if (!allTags.length) return [];
-  if (mediaType === "audio" || mediaType === "video") {
-    const meetingTag = allTags.find((tag) => tag.name.includes("会议"));
-    return meetingTag ? [meetingTag.id] : [allTags[0].id];
+interface UploadBatchResponse {
+  total: number;
+  completed: number;
+  failed: number;
+  results: Array<{
+    note_id: number;
+    status: string;
+    message: string;
+  }>;
+}
+
+interface PollResponse {
+  items: Array<{
+    note_id: number;
+    status: string;
+    error_message?: string | null;
+  }>;
+}
+
+function toTagItem(tag: BackendTag): TagItem {
+  return {
+    id: tag.id,
+    name: tag.name,
+    color: tag.color || "#3B82F6",
+  };
+}
+
+function toNoteItem(note: BackendNote): NoteItem {
+  return {
+    id: note.id,
+    title: note.title,
+    summary: note.summary || "",
+    content: note.content || "",
+    mediaType: note.media_type || "text",
+    categoryId: note.category_id,
+    tagIds: (note.tags || []).map((tag) => tag.id),
+    originalPath: note.original_path || null,
+    status: note.status || "pending",
+    createdAt: note.created_at || new Date().toISOString(),
+  };
+}
+
+function buildDefaultMarkdown(note: NoteItem): string {
+  return [
+    `# ${note.title}`,
+    "",
+    "## AI 结构化总结",
+    note.summary || "（暂无总结）",
+    "",
+    "## 可编辑笔记",
+    "- 在此补充你的个人理解、行动项与复盘。",
+  ].join("\n");
+}
+
+function mergeTags(existing: TagItem[], incoming: TagItem[]): TagItem[] {
+  const map = new Map<number, TagItem>();
+  existing.forEach((tag) => map.set(tag.id, tag));
+  incoming.forEach((tag) => {
+    const old = map.get(tag.id);
+    map.set(tag.id, old ? { ...old, ...tag } : tag);
+  });
+  return Array.from(map.values()).sort((a, b) => a.id - b.id);
+}
+
+async function pollProcessingNotes(noteIds: number[], setProgress: (progress: number, message: string) => void) {
+  const maxRounds = 30;
+  for (let round = 0; round < maxRounds; round += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/notes/status?ids=${noteIds.join(",")}`);
+      if (!response.ok) {
+        continue;
+      }
+      const payload: PollResponse = await response.json();
+      const statuses = payload.items.map((item) => item.status);
+      const allFinished = statuses.every((status) => status === "completed" || status === "failed");
+
+      const progress = Math.min(95, 35 + round * 2);
+      setProgress(progress, `AI 处理中 ${progress}%`);
+
+      if (allFinished) {
+        return payload;
+      }
+    } catch {
+      // 网络抖动时继续轮询，避免一次请求失败就终止流程。
+      continue;
+    }
   }
-  if (mediaType === "image") {
-    const ideaTag = allTags.find((tag) => tag.name.includes("灵感"));
-    return ideaTag ? [ideaTag.id] : [allTags[0].id];
-  }
-  return [allTags[0].id];
+  return null;
 }
 
 export const useOmniNoteStore = create<OmniNoteState>((set) => ({
@@ -139,12 +222,46 @@ export const useOmniNoteStore = create<OmniNoteState>((set) => ({
   notes: initialNotes,
   selectedCategoryId: null,
   selectedTagIds: [],
+  selectedNoteId: initialNotes[0]?.id ?? null,
+  markdownDrafts: initialNotes.reduce<Record<number, string>>((acc, note) => {
+    acc[note.id] = buildDefaultMarkdown(note);
+    return acc;
+  }, {}),
   viewMode: "card",
   upload: {
     isDragging: false,
     isUploading: false,
     progress: 0,
     message: "等待上传",
+  },
+  loadNotes: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/notes`);
+    if (!response.ok) {
+      throw new Error("获取笔记列表失败");
+    }
+    const payload: BackendNote[] = await response.json();
+    const mappedNotes = payload.map(toNoteItem);
+    const incomingTags = payload.flatMap((note) => (note.tags || []).map(toTagItem));
+
+    set((state) => {
+      const markdownDrafts = { ...state.markdownDrafts };
+      mappedNotes.forEach((note) => {
+        if (!markdownDrafts[note.id]) {
+          markdownDrafts[note.id] = buildDefaultMarkdown(note);
+        }
+      });
+
+      const selectedNoteStillExists = state.selectedNoteId
+        ? mappedNotes.some((note) => note.id === state.selectedNoteId)
+        : false;
+
+      return {
+        notes: mappedNotes,
+        tags: mergeTags(state.tags, incomingTags),
+        markdownDrafts,
+        selectedNoteId: selectedNoteStillExists ? state.selectedNoteId : mappedNotes[0]?.id ?? null,
+      };
+    });
   },
   selectCategory: (categoryId) => set({ selectedCategoryId: categoryId }),
   toggleTag: (tagId) =>
@@ -157,6 +274,14 @@ export const useOmniNoteStore = create<OmniNoteState>((set) => ({
       };
     }),
   clearTagFilter: () => set({ selectedTagIds: [] }),
+  selectNote: (noteId) => set({ selectedNoteId: noteId }),
+  setMarkdownDraft: (noteId, markdown) =>
+    set((state) => ({
+      markdownDrafts: {
+        ...state.markdownDrafts,
+        [noteId]: markdown,
+      },
+    })),
   setViewMode: (mode) => set({ viewMode: mode }),
   setDragActive: (active) =>
     set((state) => ({
@@ -185,76 +310,81 @@ export const useOmniNoteStore = create<OmniNoteState>((set) => ({
         tags: [...state.tags, { id: maxId + 1, name, color: "#6366F1" }],
       };
     }),
-  ingestFiles: (files) => {
+  uploadFiles: async (files) => {
     if (!files.length) return;
 
-    const now = new Date().toISOString();
-    const fileRefs = files.map((file, index) => {
-      const id = Date.now() + index;
-      return {
-        id,
-        file,
-        mediaType: inferMediaType(file),
-      };
-    });
-
-    // 关键业务逻辑：先落一批 processing 笔记，后续再统一更新为 completed，模拟后端流水线。
     set((state) => ({
-      notes: [
-        ...fileRefs.map(({ id, file, mediaType }) => ({
-          id,
-          title: file.name.replace(/\.[^/.]+$/, "") || "未命名笔记",
-          summary: buildSummaryByMediaType(mediaType),
-          mediaType,
-          categoryId: state.selectedCategoryId,
-          tagIds: [],
-          status: "processing" as NoteStatus,
-          createdAt: now,
-        })),
-        ...state.notes,
-      ],
-      upload: {
-        ...state.upload,
-        isUploading: true,
-        progress: 8,
-        message: `正在处理 ${files.length} 个文件`,
-      },
+      upload: { ...state.upload, isUploading: true, progress: 10, message: "上传中..." },
     }));
 
-    let progress = 8;
-    const timer = setInterval(() => {
-      progress += 12;
-      if (progress >= 100) {
-        clearInterval(timer);
-        set((state) => ({
-          notes: state.notes.map((note) => {
-            const target = fileRefs.find((item) => item.id === note.id);
-            if (!target) return note;
-            return {
-              ...note,
-              summary: "AI 已完成摘要：这是基于多模态内容提取后的结构化总结（Mock）。",
-              tagIds: suggestTagIds(target.mediaType, state.tags),
-              status: "completed",
-            };
-          }),
-          upload: {
-            ...state.upload,
-            isUploading: false,
-            progress: 100,
-            message: "处理完成",
-          },
-        }));
-        return;
+    try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append("files", file));
+
+      const selectedCategoryId = useOmniNoteStore.getState().selectedCategoryId;
+      if (selectedCategoryId !== null) {
+        formData.append("category_id", String(selectedCategoryId));
       }
+
+      const response = await fetch(`${API_BASE_URL}/api/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        throw new Error("上传失败，请检查后端服务是否可用");
+      }
+
+      const payload: UploadBatchResponse = await response.json();
+      const processingIds = payload.results
+        .filter((item) => item.status === "processing")
+        .map((item) => item.note_id);
 
       set((state) => ({
         upload: {
           ...state.upload,
-          progress,
-          message: `后台处理中 ${progress}%`,
+          progress: 35,
+          message: "上传完成，等待 AI 处理...",
         },
       }));
-    }, 220);
+
+      await useOmniNoteStore.getState().loadNotes();
+
+      if (processingIds.length > 0) {
+        await pollProcessingNotes(processingIds, (progress, message) => {
+          set((state) => ({
+            upload: {
+              ...state.upload,
+              progress,
+              message,
+            },
+          }));
+        });
+      }
+
+      await useOmniNoteStore.getState().loadNotes();
+
+      const failedCount = payload.results.filter((item) => item.status === "failed").length;
+      set((state) => ({
+        upload: {
+          ...state.upload,
+          isUploading: false,
+          progress: 100,
+          message: failedCount
+            ? `处理完成，${failedCount} 个文件失败`
+            : "处理完成，全部文件已入库",
+        },
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "上传异常，请稍后重试";
+      set((state) => ({
+        upload: {
+          ...state.upload,
+          isUploading: false,
+          progress: 0,
+          message,
+        },
+      }));
+    }
   },
 }));
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { LayoutGrid, List } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
+import { NoteDetailPanel } from "@/components/detail/NoteDetailPanel";
 import { UploadDropzone } from "@/components/upload/UploadDropzone";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,8 +24,19 @@ export function MainArea() {
   const notes = useOmniNoteStore((state) => state.notes);
   const selectedCategoryId = useOmniNoteStore((state) => state.selectedCategoryId);
   const selectedTagIds = useOmniNoteStore((state) => state.selectedTagIds);
+  const selectedNoteId = useOmniNoteStore((state) => state.selectedNoteId);
+  const markdownDrafts = useOmniNoteStore((state) => state.markdownDrafts);
   const viewMode = useOmniNoteStore((state) => state.viewMode);
+  const loadNotes = useOmniNoteStore((state) => state.loadNotes);
+  const selectNote = useOmniNoteStore((state) => state.selectNote);
+  const setMarkdownDraft = useOmniNoteStore((state) => state.setMarkdownDraft);
   const setViewMode = useOmniNoteStore((state) => state.setViewMode);
+
+  useEffect(() => {
+    loadNotes().catch(() => {
+      // 关键业务逻辑：后端离线时仍允许查看本地示例数据，避免主界面空白。
+    });
+  }, [loadNotes]);
 
   const categoryChildrenMap = useMemo(() => {
     const map = new Map<number, CategoryItem[]>();
@@ -82,13 +94,31 @@ export function MainArea() {
     }, {});
   }, [tags]);
 
+  useEffect(() => {
+    if (!filteredNotes.length) {
+      if (selectedNoteId !== null) selectNote(null);
+      return;
+    }
+    const stillVisible = selectedNoteId
+      ? filteredNotes.some((note) => note.id === selectedNoteId)
+      : false;
+    if (!stillVisible) {
+      selectNote(filteredNotes[0].id);
+    }
+  }, [filteredNotes, selectedNoteId, selectNote]);
+
+  const selectedNote =
+    filteredNotes.find((note) => note.id === selectedNoteId) ||
+    notes.find((note) => note.id === selectedNoteId) ||
+    null;
+
   return (
     <main className="flex flex-1 flex-col overflow-hidden">
       <header className="flex-shrink-0 border-b border-slate-200 bg-white px-6 py-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-medium text-slate-700">笔记</h2>
-            <p className="text-sm text-slate-500">上传后将进入 AI 后台处理流程（Phase 2 Mock）</p>
+            <p className="text-sm text-slate-500">上传后将进入 AI 后台处理流程（上传 + 轮询）</p>
           </div>
           <div className="flex gap-2">
             <Button
@@ -110,37 +140,54 @@ export function MainArea() {
         <UploadDropzone />
       </header>
 
-      <div className="flex-1 overflow-auto p-6">
-        {!filteredNotes.length ? (
-          <div className="flex h-full min-h-[220px] items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50">
-            <div className="text-center text-slate-500">
-              <p className="mb-1 text-base font-medium">暂无匹配笔记</p>
-              <p className="text-sm">可切换分类/标签，或上传文件创建新笔记</p>
+      <div className="grid flex-1 grid-cols-1 xl:grid-cols-[360px_1fr]">
+        <section className="overflow-auto border-r border-slate-200 bg-slate-50 p-4">
+          {!filteredNotes.length ? (
+            <div className="flex h-full min-h-[220px] items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50">
+              <div className="text-center text-slate-500">
+                <p className="mb-1 text-base font-medium">暂无匹配笔记</p>
+                <p className="text-sm">可切换分类/标签，或上传文件创建新笔记</p>
+              </div>
             </div>
-          </div>
-        ) : viewMode === "card" ? (
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-            {filteredNotes.map((note) => (
-              <NoteCard
-                key={note.id}
-                note={note}
-                categoryName={note.categoryId ? categoryNameMap[note.categoryId] : "未分类"}
-                tagNameMap={tagNameMap}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredNotes.map((note) => (
-              <NoteRow
-                key={note.id}
-                note={note}
-                categoryName={note.categoryId ? categoryNameMap[note.categoryId] : "未分类"}
-                tagNameMap={tagNameMap}
-              />
-            ))}
-          </div>
-        )}
+          ) : viewMode === "card" ? (
+            <div className="space-y-3">
+              {filteredNotes.map((note) => (
+                <NoteCard
+                  key={note.id}
+                  note={note}
+                  isActive={selectedNoteId === note.id}
+                  onClick={() => selectNote(note.id)}
+                  categoryName={note.categoryId ? categoryNameMap[note.categoryId] : "未分类"}
+                  tagNameMap={tagNameMap}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredNotes.map((note) => (
+                <NoteRow
+                  key={note.id}
+                  note={note}
+                  isActive={selectedNoteId === note.id}
+                  onClick={() => selectNote(note.id)}
+                  categoryName={note.categoryId ? categoryNameMap[note.categoryId] : "未分类"}
+                  tagNameMap={tagNameMap}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="overflow-auto bg-slate-50 p-4">
+          <NoteDetailPanel
+            note={selectedNote}
+            markdown={selectedNote ? markdownDrafts[selectedNote.id] || "" : ""}
+            onMarkdownChange={(value) => {
+              if (!selectedNote) return;
+              setMarkdownDraft(selectedNote.id, value);
+            }}
+          />
+        </section>
       </div>
     </main>
   );
@@ -148,49 +195,65 @@ export function MainArea() {
 
 function NoteCard({
   note,
+  isActive,
+  onClick,
   categoryName,
   tagNameMap,
 }: {
   note: NoteItem;
+  isActive: boolean;
+  onClick: () => void;
   categoryName: string;
   tagNameMap: Record<number, string>;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="line-clamp-1">{note.title}</CardTitle>
-          <span className="text-base">{mediaTypeIcon(note.mediaType)}</span>
-        </div>
-        <CardDescription className="line-clamp-2">{note.summary}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <p className="text-xs text-slate-500">分类：{categoryName}</p>
-        <div className="flex flex-wrap gap-1">
-          {note.tagIds.map((tagId) => (
-            <Badge key={tagId} variant="secondary">
-              {tagNameMap[tagId] ?? `标签#${tagId}`}
-            </Badge>
-          ))}
-          {!note.tagIds.length && <Badge variant="outline">待自动打标</Badge>}
-          {note.status !== "completed" && <Badge variant="outline">处理中</Badge>}
-        </div>
-      </CardContent>
-    </Card>
+    <button type="button" onClick={onClick} className="w-full text-left">
+      <Card className={isActive ? "ring-2 ring-slate-300" : ""}>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="line-clamp-1">{note.title}</CardTitle>
+            <span className="text-base">{mediaTypeIcon(note.mediaType)}</span>
+          </div>
+          <CardDescription className="line-clamp-2">{note.summary}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-slate-500">分类：{categoryName}</p>
+          <div className="flex flex-wrap gap-1">
+            {note.tagIds.map((tagId) => (
+              <Badge key={tagId} variant="secondary">
+                {tagNameMap[tagId] ?? `标签#${tagId}`}
+              </Badge>
+            ))}
+            {!note.tagIds.length && <Badge variant="outline">待自动打标</Badge>}
+            {note.status !== "completed" && <Badge variant="outline">处理中</Badge>}
+          </div>
+        </CardContent>
+      </Card>
+    </button>
   );
 }
 
 function NoteRow({
   note,
+  isActive,
+  onClick,
   categoryName,
   tagNameMap,
 }: {
   note: NoteItem;
+  isActive: boolean;
+  onClick: () => void;
   categoryName: string;
   tagNameMap: Record<number, string>;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-lg border px-4 py-3 text-left ${
+        isActive ? "border-slate-400 bg-slate-100" : "border-slate-200 bg-white"
+      }`}
+    >
       <div className="mb-1 flex items-center justify-between">
         <p className="line-clamp-1 text-sm font-medium text-slate-800">
           {mediaTypeIcon(note.mediaType)} {note.title}
@@ -206,6 +269,6 @@ function NoteRow({
         ))}
         {!note.tagIds.length && <Badge variant="outline">待自动打标</Badge>}
       </div>
-    </div>
+    </button>
   );
 }

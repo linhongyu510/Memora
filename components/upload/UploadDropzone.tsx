@@ -11,11 +11,11 @@ export function UploadDropzone() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const upload = useOmniNoteStore((state) => state.upload);
   const setDragActive = useOmniNoteStore((state) => state.setDragActive);
-  const ingestFiles = useOmniNoteStore((state) => state.ingestFiles);
+  const uploadFiles = useOmniNoteStore((state) => state.uploadFiles);
 
   const handleFiles = (list: FileList | null) => {
     if (!list?.length) return;
-    ingestFiles(Array.from(list));
+    uploadFiles(Array.from(list));
   };
 
   return (

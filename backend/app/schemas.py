@@ -87,3 +87,13 @@ class UploadBatchResponse(BaseModel):
     completed: int
     failed: int
     results: List[UploadItemResponse]
+
+
+class NoteStatusItem(BaseModel):
+    note_id: int
+    status: str
+    error_message: Optional[str] = None
+
+
+class NoteStatusBatchResponse(BaseModel):
+    items: List[NoteStatusItem] = Field(default_factory=list)
