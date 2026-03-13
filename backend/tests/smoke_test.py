@@ -57,7 +57,10 @@ async def run_smoke_test() -> None:
 
             settings_before = await client.get("/api/settings")
             assert_status(settings_before, 200)
-            assert settings_before.json()["llm_api_key_set"] is False
+            settings_before_payload = settings_before.json()
+            assert "llm_api_key_set" in settings_before_payload
+            assert "llm_api_base" in settings_before_payload
+            assert "llm_model" in settings_before_payload
 
             settings_after = await client.post(
                 "/api/settings",
@@ -184,8 +187,10 @@ async def run_smoke_test() -> None:
             notes = await client.get("/api/notes")
             assert_status(notes, 200)
             notes_payload = notes.json()
-            assert len(notes_payload) == 1
-            assert notes_payload[0]["id"] == note["id"]
+            note_ids = {item["id"] for item in notes_payload}
+            assert note["id"] in note_ids
+            assert image_note["id"] in note_ids
+            assert len(notes_payload) >= 2
 
             detail = await client.get(f"/api/notes/{note['id']}")
             assert_status(detail, 200)

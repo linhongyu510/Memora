@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     PADDLE_OCR_LANG: str = "ch"
     PADDLE_OCR_USE_ANGLE_CLS: bool = True
 
+    # Vector store / Embeddings (RAG)
+    CHROMA_DIR: str = ".chroma"
+    EMBEDDING_API_BASE: Optional[str] = None
+    EMBEDDING_API_KEY: Optional[str] = None
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+
     # Whisper 配置（音视频转写）
     WHISPER_MODEL: str = "base"  # tiny / base / small / medium / large
 
