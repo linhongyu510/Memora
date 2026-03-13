@@ -1,10 +1,10 @@
 """
-Pydantic 序列化模型 - 用于 API 请求/响应
+数据库实体相关的 Pydantic 模型 - 用于 CRUD API 请求/响应
 """
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-from .models import MediaType
+from app.models import MediaType
 
 
 # ============ 分类 ============

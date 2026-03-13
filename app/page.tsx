@@ -10,10 +10,8 @@ import { MainArea } from "@/components/layout/MainArea";
  */
 export default function HomePage() {
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
-      {/* 左侧边栏 */}
+    <div className="flex min-h-screen w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.12),_transparent_32%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] lg:flex-row">
       <Sidebar />
-      {/* 主内容区 */}
       <MainArea />
     </div>
   );

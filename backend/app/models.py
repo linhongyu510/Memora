@@ -1,7 +1,7 @@
 """
 数据库实体模型 - Category, Tag, Note 及其关联关系
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table, Enum
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table, Enum, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -99,3 +99,22 @@ class Note(Base):
     # 关联
     category = relationship("Category", back_populates="notes")
     tags = relationship("Tag", secondary=note_tag_association, back_populates="notes")
+
+
+# ============ 系统配置模型 ============
+class SystemConfig(Base):
+    """
+    系统配置 - 用于在数据库中持久化 key/value 设置（如 LLM API Key、Base URL、模型名等）。
+
+    注意：当前不做加密存储，仅通过 is_secret 标记，API 响应会避免直接返回敏感值。
+    """
+
+    __tablename__ = "system_config"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    key = Column(String(100), nullable=False, unique=True, index=True)
+    value = Column(Text, nullable=True)
+    is_secret = Column(Boolean, default=False, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -8,3 +8,22 @@ python-multipart==0.0.9
 pydantic==2.6.1
 pydantic-settings==2.1.0
 python-dotenv==1.0.1
+
+# Pipeline: PDF/Word
+pymupdf==1.24.10
+python-docx==1.1.2
+
+# Pipeline: OCR / scanned PDF
+# PaddleOCR 3.x 官方要求 PaddlePaddle 3.0+，代码层已做懒加载，未安装时仍可回退。
+paddlepaddle>=3.0.0,<4.0.0
+paddleocr>=3.0.0,<4.0.0
+Pillow>=10.0.0
+numpy>=1.26.0
+
+# Pipeline: LLM (DeepSeek/OpenAI)
+openai>=1.12.0
+
+# Optional: OCR/Vision (uncomment if needed)
+# pytesseract
+# pillow
+# openai-whisper
